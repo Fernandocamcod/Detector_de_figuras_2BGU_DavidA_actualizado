@@ -1,0 +1,1290 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Visión IA — Detección y reconocimiento en tiempo real (Privacidad desde el Diseño)</title>
+<style>
+:root{
+  --primary:#7c3aed;--primary-hover:#6d28d9;--primary-light:#a78bfa;
+  --primary-pale:#ede9fe;--bg:#f8fafc;--bg-sec:#f1f5f9;--card-bg:#fff;
+  --text:#1e293b;--text-sec:#64748b;--border:#e2e8f0;--danger:#ef4444;
+  --success:#22c55e;--warning:#f59e0b;--shadow:0 1px 3px rgba(0,0,0,.06);
+  --shadow-md:0 4px 12px rgba(0,0,0,.08);--radius:12px;--radius-sm:8px;
+  --font:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+  --label-bg:rgba(15,23,42,.88);--label-text:#fff;--label-sec:#cbd5e1;
+}
+[data-theme="dark"]{
+  --primary:#a78bfa;--primary-hover:#c4b5fd;--primary-light:#7c3aed;
+  --primary-pale:#2e1065;--bg:#0f172a;--bg-sec:#1e293b;--card-bg:#1e293b;
+  --text:#e2e8f0;--text-sec:#94a3b8;--border:#334155;--danger:#f87171;
+  --success:#4ade80;--warning:#fbbf24;--shadow:0 1px 3px rgba(0,0,0,.3);
+  --shadow-md:0 4px 12px rgba(0,0,0,.4);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{color-scheme:light dark}
+body{font-family:var(--font);background:var(--bg);color:var(--text);
+  line-height:1.5;min-height:100vh;display:flex;flex-direction:column;
+  transition:background-color .25s,color .25s}
+header{padding:20px 32px 14px;background:var(--card-bg);
+  border-bottom:1px solid var(--border)}
+.header-content{max-width:1440px;margin:0 auto;display:flex;
+  justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
+h1{font-size:1.6rem;font-weight:700;color:var(--primary);letter-spacing:-.02em}
+.subtitle{font-size:.85rem;color:var(--text-sec);margin-top:2px}
+.theme-switch{display:flex;gap:6px;background:var(--bg-sec);
+  padding:4px;border-radius:999px;border:1px solid var(--border)}
+.theme-switch button{padding:6px 14px;border:none;background:transparent;
+  border-radius:999px;cursor:pointer;font-family:var(--font);font-size:.8rem;
+  font-weight:500;color:var(--text-sec);transition:all .18s}
+.theme-switch button[aria-pressed="true"]{background:var(--primary);color:#fff}
+.app-container{max-width:1440px;margin:0 auto;padding:20px 32px 32px;
+  display:flex;gap:24px;flex:1;width:100%}
+@media (max-width:900px){.app-container{flex-direction:column;padding:16px}}
+.camera-section{flex:1;min-width:0}
+.camera-wrapper{position:relative;background:#0a0f1a;border-radius:var(--radius);
+  overflow:hidden;box-shadow:var(--shadow-md);width:100%;aspect-ratio:4/3;
+  max-height:72vh;margin:0 auto}
+#video{position:absolute;inset:0;width:100%;height:100%;
+  object-fit:contain;pointer-events:none;transition:transform .25s}
+#video.mirrored{transform:scaleX(-1)}
+#overlay{position:absolute;inset:0;width:100%;height:100%;
+  object-fit:contain;pointer-events:none}
+#overlay.roi-active{pointer-events:auto;cursor:crosshair}
+.empty-state{position:absolute;inset:0;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:12px;color:#94a3b8;
+  font-size:.95rem;background:#0a0f1a;z-index:5}
+.empty-state svg{width:56px;height:56px;opacity:.5}
+.camera-status{position:absolute;bottom:12px;left:12px;right:12px;
+  background:rgba(15,23,42,.82);backdrop-filter:blur(8px);color:#fff;
+  padding:8px 14px;border-radius:var(--radius-sm);font-size:.8rem;
+  display:flex;justify-content:space-between;align-items:center;gap:12px;
+  flex-wrap:wrap;z-index:10;pointer-events:none}
+.camera-status .stat{display:flex;gap:6px;align-items:center}
+.camera-status .stat strong{color:var(--primary-light);font-weight:600}
+.camera-status .sep{opacity:.3}
+.roi-controls{margin-top:12px;display:flex;gap:10px;flex-wrap:wrap;
+  align-items:center}
+.roi-controls .toggle-row{flex:1;min-width:180px;border:none;padding:0}
+.control-panel{width:360px;flex-shrink:0;display:flex;flex-direction:column;
+  gap:14px;max-height:calc(100vh - 130px);overflow-y:auto;padding-right:4px}
+@media (max-width:900px){.control-panel{width:100%;max-height:none}}
+.card{background:var(--card-bg);border:1px solid var(--border);
+  border-radius:var(--radius);padding:16px 18px;box-shadow:var(--shadow)}
+.card-title{font-size:.78rem;font-weight:600;text-transform:uppercase;
+  letter-spacing:.06em;color:var(--text-sec);margin-bottom:12px;
+  display:flex;justify-content:space-between;align-items:center}
+.card-title .count{font-size:.72rem;font-weight:500;color:var(--primary);
+  text-transform:none;letter-spacing:0}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  padding:9px 14px;border-radius:var(--radius-sm);font-family:var(--font);
+  font-size:.83rem;font-weight:500;border:1px solid transparent;cursor:pointer;
+  white-space:nowrap;transition:background .15s,border-color .15s,opacity .15s}
+.btn:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+.btn:disabled{opacity:.42;cursor:not-allowed}
+.btn-primary{background:var(--primary);color:#fff}
+.btn-primary:hover:not(:disabled){background:var(--primary-hover)}
+.btn-secondary{background:var(--primary-pale);color:var(--primary);
+  border-color:var(--primary-light)}
+.btn-secondary:hover:not(:disabled){background:var(--primary-light);color:#fff}
+.btn-danger{background:transparent;color:var(--danger);border-color:var(--danger)}
+.btn-danger:hover:not(:disabled){background:var(--danger);color:#fff}
+.btn-row{display:flex;gap:8px;flex-wrap:wrap}
+.btn-row .btn{flex:1;min-width:0}
+.toggle-row{display:flex;align-items:center;justify-content:space-between;
+  padding:8px 0;border-bottom:1px solid var(--border);gap:8px}
+.toggle-row:last-child{border-bottom:none}
+.toggle-label{font-size:.84rem;color:var(--text)}
+.switch{position:relative;width:40px;height:22px;flex-shrink:0}
+.switch input{position:absolute;inset:0;width:100%;height:100%;
+  opacity:0;cursor:pointer;z-index:2;margin:0}
+.slider{position:absolute;cursor:pointer;inset:0;background:#cbd5e1;
+  border-radius:22px;transition:background .2s;z-index:1}
+[data-theme="dark"] .slider{background:#475569}
+.slider::before{content:"";position:absolute;height:16px;width:16px;
+  left:3px;bottom:3px;background:#fff;border-radius:50%;transition:transform .2s}
+.switch input:checked~.slider{background:var(--primary)}
+.switch input:checked~.slider::before{transform:translateX(18px)}
+.switch input:focus-visible~.slider{outline:2px solid var(--primary);outline-offset:2px}
+.threshold-group{margin-top:10px}
+.threshold-group label{display:flex;justify-content:space-between;
+  font-size:.8rem;color:var(--text-sec);margin-bottom:6px}
+input[type="range"]{width:100%;height:6px;-webkit-appearance:none;
+  appearance:none;background:var(--border);border-radius:3px;outline:none}
+input[type="range"]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;
+  height:18px;background:var(--primary);border-radius:50%;cursor:pointer;
+  border:2px solid var(--card-bg);box-shadow:0 1px 4px rgba(0,0,0,.2)}
+.status-indicator{display:flex;align-items:center;gap:8px;font-size:.82rem;
+  color:var(--text-sec);padding:4px 0}
+.status-dot{width:8px;height:8px;border-radius:50%;background:#cbd5e1;flex-shrink:0}
+.status-dot.loading{background:var(--warning);animation:pulse 1s infinite}
+.status-dot.ready{background:var(--success)}
+.status-dot.error{background:var(--danger)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.shape-library{display:grid;grid-template-columns:repeat(auto-fill,minmax(72px,1fr));
+  gap:8px;margin-top:4px}
+.shape-card{display:flex;flex-direction:column;align-items:center;gap:4px;
+  padding:8px 4px;background:var(--bg-sec);border:1px solid var(--border);
+  border-radius:var(--radius-sm);transition:border-color .15s}
+.shape-card:hover{border-color:var(--primary-light)}
+.shape-card svg{width:30px;height:30px;color:var(--primary)}
+.shape-card span{font-size:.68rem;color:var(--text);text-align:center;font-weight:500}
+.learning-section{display:flex;flex-direction:column;gap:10px}
+.learning-input-row{display:flex;gap:6px}
+.learning-input-row input{flex:1;padding:8px 10px;border:1px solid var(--border);
+  border-radius:var(--radius-sm);font-family:var(--font);font-size:.82rem;
+  color:var(--text);background:var(--bg);outline:none;min-width:0}
+.learning-input-row input:focus{border-color:var(--primary)}
+.learning-counter{font-size:.76rem;color:var(--text-sec)}
+.learned-list{display:flex;flex-wrap:wrap;gap:6px}
+.learned-tag{display:inline-flex;align-items:center;gap:4px;
+  background:var(--primary-pale);color:var(--primary);font-size:.72rem;
+  padding:3px 8px;border-radius:20px;font-weight:500}
+.learned-tag button{cursor:pointer;background:none;border:none;
+  color:var(--primary);font-size:.85rem;line-height:1;padding:0 2px;
+  opacity:.6;font-weight:700}
+.learned-tag button:hover{opacity:1}
+.feedback-msg{font-size:.78rem;padding:8px 10px;border-radius:var(--radius-sm);
+  display:none}
+.feedback-msg.success{display:block;background:#f0fdf4;color:#15803d;
+  border:1px solid #bbf7d0}
+[data-theme="dark"] .feedback-msg.success{background:#14532d;color:#86efac;
+  border-color:#166534}
+.feedback-msg.error{display:block;background:#fef2f2;color:#b91c1c;
+  border:1px solid #fecaca}
+[data-theme="dark"] .feedback-msg.error{background:#7f1d1d;color:#fecaca;
+  border-color:#991b1b}
+.feedback-msg.info{display:block;background:var(--primary-pale);color:var(--primary);
+  border:1px solid var(--primary-light)}
+.privacy-note{font-size:.72rem;color:var(--text-sec);padding:12px 16px;
+  background:var(--bg-sec);border-radius:var(--radius);line-height:1.55}
+.privacy-note strong{color:var(--text)}
+.perf-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px}
+.perf-item{background:var(--bg-sec);padding:8px 10px;border-radius:var(--radius-sm)}
+.perf-item .label{font-size:.68rem;color:var(--text-sec);text-transform:uppercase;
+  letter-spacing:.04em}
+.perf-item .value{font-size:.95rem;font-weight:600;color:var(--primary);margin-top:2px}
+@media (max-width:600px){
+  header{padding:14px 16px}h1{font-size:1.3rem}
+  .app-container{padding:12px;gap:14px}
+  .camera-wrapper{max-height:55vh}
+}
+.control-panel::-webkit-scrollbar{width:6px}
+.control-panel::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+
+/* Modal de aviso legal */
+.legal-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.88);
+  backdrop-filter: blur(6px);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+.legal-modal-overlay.hidden {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+.legal-modal-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  max-width: 650px;
+  width: 100%;
+  padding: 28px 32px;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+  animation: modalSlideUp 0.4s ease-out;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+@keyframes modalSlideUp {
+  from { opacity: 0; transform: translateY(30px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.legal-modal-card h2 {
+  color: var(--primary);
+  font-size: 1.4rem;
+  margin-bottom: 12px;
+}
+.legal-modal-card p {
+  font-size: 0.9rem;
+  color: var(--text-sec);
+  margin-bottom: 14px;
+  line-height: 1.6;
+}
+.legal-modal-card ul {
+  margin: 0 0 20px 20px;
+  font-size: 0.88rem;
+  color: var(--text-sec);
+  line-height: 1.6;
+}
+.legal-modal-card ul li {
+  margin-bottom: 8px;
+}
+.legal-modal-card strong {
+  color: var(--text);
+}
+.legal-modal-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+.legal-modal-actions .btn {
+  padding: 10px 24px;
+  font-size: 0.9rem;
+  flex: 1;
+  min-width: 140px;
+}
+</style>
+</head>
+<body>
+
+<!-- Modal de Aviso Legal -->
+<div class="legal-modal-overlay" id="legalModal">
+  <div class="legal-modal-card" role="dialog" aria-modal="true" aria-labelledby="legalTitle">
+    <h2 id="legalTitle">Aviso Legal y Consentimiento Informado</h2>
+    <p>
+      Antes de utilizar <strong>Visión IA — Control de Acceso</strong>, lea detenidamente las siguientes condiciones de tratamiento de datos biométricos, alineadas con la <strong>Ley Orgánica de Protección de Datos Personales (LOPDP)</strong> y la <strong>Resolución SPDP-SPD-2026-0039-R</strong>.
+    </p>
+    <ul>
+      <li><strong>Datos capturados:</strong> La cámara web capturará imágenes de su rostro y gestos de sus manos en tiempo real.</li>
+      <li><strong>Datos procesados:</strong> Los fotogramas se procesan <strong>exclusivamente en la memoria volátil del navegador</strong>. Se extraen vectores matemáticos anonimizados (plantillas biométricas) y se descarta la imagen en crudo inmediatamente.</li>
+      <li><strong>Datos almacenados:</strong> No se guardan imágenes ni videos en discos ni servidores. Solo se almacenan plantillas biométricas (features) de forma local si usted decide entrenar el modelo, con fines de control de acceso.</li>
+      <li><strong>Datos compartidos:</strong> Ninguna información se comparte con terceros. Todo el procesamiento es <strong>local (cliente)</strong>.</li>
+      <li><strong>Alternativa no biométrica:</strong> Usted tiene derecho a rechazar este tratamiento. Si rechaza, no podrá acceder al sistema de control de acceso gestual.</li>
+    </ul>
+    <p style="font-size:0.8rem; color: var(--text-sec);">
+      Al hacer clic en <strong>Aceptar</strong>, usted otorga su consentimiento explícito para el procesamiento de sus datos biométricos bajo los términos descritos.
+    </p>
+    <div class="legal-modal-actions">
+      <button class="btn btn-danger" id="rejectLegalBtn">Rechazar y salir</button>
+      <button class="btn btn-primary" id="acceptLegalBtn">Aceptar y continuar</button>
+    </div>
+  </div>
+</div>
+
+<header>
+  <div class="header-content">
+    <div>
+      <h1>Visión IA — Control de Acceso</h1>
+      <p class="subtitle">Cumplimiento LOPDP & Resolución SPDP-SPD-2026-0039-R</p>
+    </div>
+    <div class="theme-switch" role="group" aria-label="Selector de tema">
+      <button id="themeLight" aria-pressed="true">☀ Modo claro</button>
+      <button id="themeDark" aria-pressed="false">🌙 Modo oscuro</button>
+    </div>
+  </div>
+</header>
+
+<div class="app-container">
+  <div class="camera-section">
+    <div class="camera-wrapper" id="cameraWrapper">
+      <video id="video" autoplay playsinline muted></video>
+      <canvas id="overlay"></canvas>
+      <div class="empty-state" id="emptyState">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+        </svg>
+        <span>La cámara está apagada (Privacidad por defecto)</span>
+      </div>
+      <div class="camera-status" id="cameraStatus" style="display:none;">
+        <div class="stat"><strong id="fpsDisplay">—</strong><span>FPS</span></div>
+        <span class="sep">|</span>
+        <div class="stat"><strong id="inferenceDisplay">—</strong><span>inf/s</span></div>
+        <span class="sep">|</span>
+        <div class="stat"><span id="detectionCount">0 detecciones</span></div>
+      </div>
+    </div>
+    <div class="roi-controls">
+      <label class="toggle-row">
+        <span class="toggle-label">Activar área de detección (ROI)</span>
+        <span class="switch">
+          <input type="checkbox" id="roiToggle">
+          <span class="slider"></span>
+        </span>
+      </label>
+      <button class="btn btn-secondary" id="resetRoiBtn" disabled>Restablecer área</button>
+    </div>
+  </div>
+
+  <div class="control-panel" id="controlPanel">
+
+    <div class="card">
+      <div class="card-title">Estado del sistema</div>
+      <div class="status-indicator">
+        <span class="status-dot" id="statusDot"></span>
+        <span id="statusText">Preparando modelos de IA…</span>
+      </div>
+      <div class="status-indicator">
+        <span class="status-dot" id="faceStatusDot"></span>
+        <span id="faceStatusText">Rostros: pendiente</span>
+      </div>
+      <div class="status-indicator">
+        <span class="status-dot" id="shapeStatusDot"></span>
+        <span id="shapeStatusText">Figuras: pendiente</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Cámara</div>
+      <div class="btn-row">
+        <button class="btn btn-primary" id="startBtn">Iniciar cámara</button>
+        <button class="btn btn-secondary" id="stopBtn" disabled>Detener cámara</button>
+      </div>
+      <div class="toggle-row" style="margin-top:10px;">
+        <span class="toggle-label">Modo espejo</span>
+        <span class="switch">
+          <input type="checkbox" id="mirrorToggle">
+          <span class="slider"></span>
+        </span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Detección</div>
+      <div class="toggle-row">
+        <span class="toggle-label">Rostros</span>
+        <span class="switch">
+          <input type="checkbox" id="faceToggle" checked>
+          <span class="slider"></span>
+        </span>
+      </div>
+      <div class="toggle-row">
+        <span class="toggle-label">Figuras geométricas</span>
+        <span class="switch">
+          <input type="checkbox" id="shapeToggle" checked>
+          <span class="slider"></span>
+        </span>
+      </div>
+      <div class="toggle-row">
+        <span class="toggle-label">Mostrar cajas y etiquetas</span>
+        <span class="switch">
+          <input type="checkbox" id="boxToggle" checked>
+          <span class="slider"></span>
+        </span>
+      </div>
+      <div class="toggle-row">
+        <span class="toggle-label">Modo de rendimiento</span>
+        <span class="switch">
+          <input type="checkbox" id="perfToggle">
+          <span class="slider"></span>
+        </span>
+      </div>
+      <div class="threshold-group">
+        <label>
+          <span>Umbral de confianza</span>
+          <span id="thresholdValue">50%</span>
+        </label>
+        <input type="range" id="thresholdSlider" min="10" max="95" value="50" step="5">
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Rendimiento</div>
+      <div class="perf-grid">
+        <div class="perf-item"><div class="label">FPS render</div>
+          <div class="value" id="perfRender">—</div></div>
+        <div class="perf-item"><div class="label">Inferencia</div>
+          <div class="value" id="perfInference">—</div></div>
+        <div class="perf-item"><div class="label">Resolución</div>
+          <div class="value" id="perfRes">—</div></div>
+        <div class="perf-item"><div class="label">Detecciones</div>
+          <div class="value" id="perfDet">0</div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Biblioteca de figuras <span class="count">9 predefinidas</span></div>
+      <div class="shape-library" id="shapeLibrary"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Aprender nuevas figuras</div>
+      <div class="learning-section">
+        <div class="learning-input-row">
+          <input type="text" id="shapeNameInput" placeholder="Nombre de la figura" maxlength="30" autocomplete="off">
+          <button class="btn btn-primary" id="captureBtn" disabled>Capturar</button>
+        </div>
+        <div class="learning-counter" id="exampleCounter">0 ejemplos guardados</div>
+        <div class="learned-list" id="learnedList"></div>
+        <div class="btn-row">
+          <button class="btn btn-secondary" id="trainBtn" disabled>Entrenar modelo</button>
+          <button class="btn btn-secondary" id="exportBtn" disabled>Exportar</button>
+        </div>
+        <div class="btn-row">
+          <label class="btn btn-secondary" style="position:relative;overflow:hidden;flex:1;">
+            Importar datos
+            <input type="file" id="importInput" accept="application/json" style="position:absolute;inset:0;opacity:0;cursor:pointer;">
+          </label>
+          <button class="btn btn-danger" id="clearLearningBtn">Limpiar</button>
+        </div>
+        <div class="feedback-msg" id="learningFeedback"></div>
+      </div>
+    </div>
+
+    <div class="privacy-note">
+      <strong>Privacidad y Ciberseguridad (LOPDP & Resolución 0039-R):</strong> 
+      Todo el procesamiento se realiza estrictamente en la memoria volátil del navegador (cliente). 
+      No se almacenan imágenes en crudo ni videos en discos o servidores. Solo se procesan vectores matemáticos 
+      anonimizados para el control de acceso.
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.20.0/dist/tf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.12/dist/face-api.min.js"></script>
+<script async src="https://docs.opencv.org/4.x/opencv.js"></script>
+
+<script>
+'use strict';
+
+// ============================================
+// LÓGICA DEL AVISO LEGAL
+// ============================================
+const LEGAL_ACCEPTED_KEY = 'vision_ia_legal_accepted_session';
+
+function checkLegalConsent() {
+  const accepted = sessionStorage.getItem(LEGAL_ACCEPTED_KEY);
+  const modal = document.getElementById('legalModal');
+  if (accepted === 'true') {
+    modal.classList.add('hidden');
+  } else {
+    modal.classList.remove('hidden');
+  }
+}
+
+document.getElementById('acceptLegalBtn').addEventListener('click', () => {
+  sessionStorage.setItem(LEGAL_ACCEPTED_KEY, 'true');
+  document.getElementById('legalModal').classList.add('hidden');
+});
+
+document.getElementById('rejectLegalBtn').addEventListener('click', () => {
+  alert('Ha rechazado el tratamiento de datos biométricos. No puede acceder al sistema. Será redirigido.');
+  window.location.href = 'about:blank';
+});
+
+// ============================================
+// LÓGICA ORIGINAL DE LA APLICACIÓN
+// ============================================
+const FACE_MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.12/model/';
+const FACE_TRACK_TIMEOUT = 800, SHAPE_TRACK_TIMEOUT = 900;
+const INF_NORMAL = 100, INF_PERF = 200;
+const LS_THEME = 'vision_ia_theme', LS_MIRROR = 'vision_ia_mirror',
+      LS_TRAINING = 'vision_ia_training_v1';
+
+const video = document.getElementById('video');
+const overlay = document.getElementById('overlay');
+const ctx = overlay.getContext('2d');
+
+let mediaStream = null, isCameraActive = false, rafId = null;
+let faceDetectorLoaded = false, ageGenderLoaded = false, expressionLoaded = false;
+let openCvReady = false, modelsLoaded = false;
+let showFaces = true, showShapes = true, showBoxes = true;
+let confidenceThreshold = 0.5, mirrorMode = false, performanceMode = false;
+let roiEnabled = false;
+let roi = { x: 0.15, y: 0.15, w: 0.7, h: 0.7 };
+let roiInteraction = null;
+let faceTracks = [], nextFaceId = 1;
+let shapeTracks = [], nextShapeId = 1;
+let lastFaceInfer = 0, lastShapeInfer = 0;
+let isFaceInferring = false, isShapeInferring = false;
+let inferenceCount = 0, inferenceWindowStart = performance.now(), currentInferenceRate = 0;
+let renderFrameCount = 0, renderFpsStart = performance.now(), currentRenderFps = 0;
+let trainingExamples = [], learnedCategories = new Set();
+let customModel = null, customLabels = [], customInputSize = 0;
+
+const shapeCanvas = document.createElement('canvas');
+const shapeCtx = shapeCanvas.getContext('2d', { willReadFrequently: true });
+
+function setStatus(t, k) {
+  document.getElementById('statusText').textContent = t;
+  document.getElementById('statusDot').className = 'status-dot ' + (k || '');
+}
+function setFaceStatus(t, k) {
+  document.getElementById('faceStatusText').textContent = t;
+  document.getElementById('faceStatusDot').className = 'status-dot ' + (k || '');
+}
+function setShapeStatus(t, k) {
+  document.getElementById('shapeStatusText').textContent = t;
+  document.getElementById('shapeStatusDot').className = 'status-dot ' + (k || '');
+}
+function showFeedback(msg, kind) {
+  const fb = document.getElementById('learningFeedback');
+  fb.textContent = msg;
+  fb.className = 'feedback-msg ' + (kind || 'info');
+  clearTimeout(showFeedback._t);
+  if (kind !== 'error') showFeedback._t = setTimeout(() => fb.className = 'feedback-msg', 4500);
+}
+function ageToRange(age) {
+  if (age < 13) return '0-12 años';
+  if (age < 18) return '13-17 años';
+  if (age < 26) return '18-25 años';
+  if (age < 36) return '26-35 años';
+  if (age < 51) return '36-50 años';
+  if (age < 66) return '51-65 años';
+  return 'Más de 65 años';
+}
+function translateExpression(e) {
+  const m = { neutral:'Neutral', happy:'Alegría', sad:'Tristeza', angry:'Enojo',
+              fearful:'Miedo', surprised:'Sorpresa', disgusted:'Asco' };
+  return m[e] || e;
+}
+function iou(a, b) {
+  const x1 = Math.max(a.x, b.x), y1 = Math.max(a.y, b.y);
+  const x2 = Math.min(a.x + a.w, b.x + b.w), y2 = Math.min(a.y + a.h, b.y + b.h);
+  const inter = Math.max(0, x2 - x1) * Math.max(0, y2 - y1);
+  const union = a.w * a.h + b.w * b.h - inter;
+  return union > 0 ? inter / union : 0;
+}
+function pointInBox(px, py, box) {
+  return px >= box.x && px <= box.x + box.w && py >= box.y && py <= box.y + box.h;
+}
+function modelToDisplayX(modelX, modelW, videoW) {
+  return mirrorMode ? (videoW - modelX - modelW) : modelX;
+}
+function screenToCanvas(clientX, clientY) {
+  const rect = overlay.getBoundingClientRect();
+  const vw = overlay.width, vh = overlay.height;
+  if (!vw || !vh || !rect.width || !rect.height) return null;
+  const rectAspect = rect.width / rect.height, canvasAspect = vw / vh;
+  let cw, ch, cx, cy;
+  if (canvasAspect > rectAspect) {
+    cw = rect.width; ch = rect.width / canvasAspect;
+    cx = 0; cy = (rect.height - ch) / 2;
+  } else {
+    cw = rect.height * canvasAspect; ch = rect.height;
+    cx = (rect.width - cw) / 2; cy = 0;
+  }
+  const px = clientX - rect.left - cx, py = clientY - rect.top - cy;
+  if (px < 0 || py < 0 || px > cw || py > ch) return null;
+  return { x: (px / cw) * vw, y: (py / ch) * vh };
+}
+
+function applyTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  document.getElementById('themeLight').setAttribute('aria-pressed', theme === 'light');
+  document.getElementById('themeDark').setAttribute('aria-pressed', theme === 'dark');
+  try { localStorage.setItem(LS_THEME, theme); } catch (e) {}
+}
+(function initTheme() {
+  let saved = null;
+  try { saved = localStorage.getItem(LS_THEME); } catch (e) {}
+  if (!saved && window.matchMedia) {
+    saved = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+  applyTheme(saved || 'light');
+})();
+document.getElementById('themeLight').addEventListener('click', () => applyTheme('light'));
+document.getElementById('themeDark').addEventListener('click', () => applyTheme('dark'));
+
+function applyMirror(on) {
+  mirrorMode = on;
+  video.classList.toggle('mirrored', on);
+  document.getElementById('mirrorToggle').checked = on;
+  try { localStorage.setItem(LS_MIRROR, on ? '1' : '0'); } catch (e) {}
+  if (isCameraActive) drawOverlay();
+}
+(function initMirror() {
+  let v = false;
+  try { v = localStorage.getItem(LS_MIRROR) === '1'; } catch (e) {}
+  applyMirror(v);
+})();
+document.getElementById('mirrorToggle').addEventListener('change', e => applyMirror(e.target.checked));
+
+const SHAPE_LIBRARY = [
+  { id:'circulo', name:'Círculo', icon:'<circle cx="20" cy="20" r="14" fill="none" stroke="currentColor" stroke-width="2"/>' },
+  { id:'triangulo', name:'Triángulo', icon:'<polygon points="20,6 34,32 6,32" fill="none" stroke="currentColor" stroke-width="2"/>' },
+  { id:'cuadrado', name:'Cuadrado', icon:'<rect x="6" y="6" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2"/>' },
+  { id:'rectangulo', name:'Rectángulo', icon:'<rect x="4" y="10" width="32" height="20" fill="none" stroke="currentColor" stroke-width="2"/>' },
+  { id:'rombo', name:'Rombo', icon:'<polygon points="20,4 34,20 20,36 6,20" fill="none" stroke="currentColor" stroke-width="2"/>' },
+  { id:'pentagono', name:'Pentágono', icon:'<polygon points="20,5 34,15 29,33 11,33 6,15" fill="none" stroke="currentColor" stroke-width="2"/>' },
+  { id:'hexagono', name:'Hexágono', icon:'<polygon points="12,6 28,6 36,20 28,34 12,34 4,20" fill="none" stroke="currentColor" stroke-width="2"/>' },
+  { id:'ovalo', name:'Óvalo', icon:'<ellipse cx="20" cy="20" rx="16" ry="11" fill="none" stroke="currentColor" stroke-width="2"/>' },
+  { id:'estrella', name:'Estrella', icon:'<polygon points="20,4 24,15 36,15 26,22 30,34 20,27 10,34 14,22 4,15 16,15" fill="none" stroke="currentColor" stroke-width="1.6"/>' }
+];
+document.getElementById('shapeLibrary').innerHTML = SHAPE_LIBRARY.map(s =>
+  `<div class="shape-card" title="Detección geométrica">
+     <svg viewBox="0 0 40 40">${s.icon}</svg>
+     <span>${s.name}</span>
+   </div>`).join('');
+
+async function loadModels() {
+  setStatus('Preparando modelos de IA…', 'loading');
+  if (typeof tf === 'undefined' || typeof faceapi === 'undefined') {
+    setStatus('No se pudieron cargar las librerías base.', 'error');
+    return;
+  }
+  try {
+    await faceapi.nets.tinyFaceDetector.loadFromUri(FACE_MODEL_URL);
+    faceDetectorLoaded = true;
+    setFaceStatus('Rostros: detector listo', 'ready');
+  } catch (e) { setFaceStatus('Rostros: no disponible', 'error'); }
+  try { await faceapi.nets.ageGenderNet.loadFromUri(FACE_MODEL_URL); ageGenderLoaded = true; } catch (e) {}
+  try { await faceapi.nets.faceExpressionNet.loadFromUri(FACE_MODEL_URL); expressionLoaded = true; } catch (e) {}
+  if (faceDetectorLoaded) {
+    setFaceStatus('Rostros: listo' + (ageGenderLoaded ? ' + edad' : '') + (expressionLoaded ? ' + expresión' : ''), 'ready');
+  }
+
+  setShapeStatus('Figuras: cargando OpenCV…', 'loading');
+  const cvOk = await waitForOpenCV(25000);
+  if (cvOk) {
+    openCvReady = true;
+    setShapeStatus('Figuras: OpenCV listo', 'ready');
+  } else {
+    setShapeStatus('Figuras: OpenCV no disponible', 'error');
+  }
+
+  modelsLoaded = faceDetectorLoaded || openCvReady;
+  if (modelsLoaded) {
+    setStatus(`Modelos listos (Privacidad local garantizada)`, 'ready');
+  } else {
+    setStatus('No se pudieron cargar los modelos de IA.', 'error');
+  }
+  updateCaptureButton();
+}
+
+function waitForOpenCV(timeoutMs) {
+  return new Promise(resolve => {
+    const start = Date.now();
+    (function check() {
+      const c = window.cv;
+      if (c && typeof c.imread === 'function' && typeof c.Canny === 'function' && typeof c.Mat === 'function') {
+        return resolve(true);
+      }
+      if (Date.now() - start > timeoutMs) return resolve(false);
+      setTimeout(check, 200);
+    })();
+  });
+}
+
+async function startCamera() {
+  if (isCameraActive) return;
+  if (!modelsLoaded) { alert('Los modelos aún se están cargando. Espere por favor.'); return; }
+  try {
+    mediaStream = await navigator.mediaDevices.getUserMedia({
+      video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' },
+      audio: false
+    });
+    video.srcObject = mediaStream;
+    await new Promise(res => { video.onloadedmetadata = () => { video.play().then(res).catch(res); }; });
+    overlay.width = video.videoWidth;
+    overlay.height = video.videoHeight;
+    isCameraActive = true;
+    document.getElementById('startBtn').disabled = true;
+    document.getElementById('stopBtn').disabled = false;
+    document.getElementById('emptyState').style.display = 'none';
+    document.getElementById('cameraStatus').style.display = 'flex';
+    document.getElementById('perfRes').textContent = `${video.videoWidth}×${video.videoHeight}`;
+    updateCaptureButton();
+    rafId = requestAnimationFrame(renderLoop);
+  } catch (err) {
+    alert('No se pudo acceder a la cámara o el permiso fue denegado.');
+    setStatus('Permiso de cámara denegado.', 'error');
+  }
+}
+
+function stopCamera() {
+  if (!isCameraActive) return;
+  if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+  if (mediaStream) { mediaStream.getTracks().forEach(t => t.stop()); mediaStream = null; }
+  video.srcObject = null;
+  isCameraActive = false;
+  document.getElementById('startBtn').disabled = false;
+  document.getElementById('stopBtn').disabled = true;
+  document.getElementById('emptyState').style.display = 'flex';
+  document.getElementById('cameraStatus').style.display = 'none';
+  ctx.clearRect(0, 0, overlay.width, overlay.height);
+  faceTracks = []; shapeTracks = [];
+  document.getElementById('detectionCount').textContent = '0 detecciones';
+  document.getElementById('perfDet').textContent = '0';
+  updateCaptureButton();
+}
+
+function renderLoop() {
+  if (!isCameraActive) return;
+  const now = performance.now();
+
+  renderFrameCount++;
+  if (now - renderFpsStart >= 1000) {
+    currentRenderFps = Math.round((renderFrameCount * 1000) / (now - renderFpsStart));
+    renderFrameCount = 0; renderFpsStart = now;
+    document.getElementById('fpsDisplay').textContent = currentRenderFps + ' FPS';
+    document.getElementById('perfRender').textContent = currentRenderFps + ' FPS';
+    const elapsed = (now - inferenceWindowStart) / 1000;
+    if (elapsed > 0) {
+      currentInferenceRate = Math.round(inferenceCount / elapsed);
+      inferenceCount = 0; inferenceWindowStart = now;
+      document.getElementById('inferenceDisplay').textContent = currentInferenceRate + '/s';
+      document.getElementById('perfInference').textContent = currentInferenceRate + '/s';
+    }
+  }
+
+  const interval = performanceMode ? INF_PERF : INF_NORMAL;
+
+  if (showFaces && faceDetectorLoaded && !isFaceInferring && (now - lastFaceInfer) >= interval) {
+    lastFaceInfer = now;
+    isFaceInferring = true;
+    detectFaces().catch(e => {}).finally(() => { isFaceInferring = false; });
+  }
+  if (showShapes && openCvReady && !isShapeInferring && (now - lastShapeInfer) >= interval) {
+    lastShapeInfer = now;
+    isShapeInferring = true;
+    detectShapes().catch(e => {}).finally(() => { isShapeInferring = false; });
+  }
+
+  drawOverlay();
+  rafId = requestAnimationFrame(renderLoop);
+}
+
+async function detectFaces() {
+  if (!faceDetectorLoaded || !video.videoWidth) return;
+  inferenceCount++;
+  const inputSize = performanceMode ? 224 : 320;
+  let pipeline = faceapi.detectAllFaces(video,
+    new faceapi.TinyFaceDetectorOptions({ inputSize, scoreThreshold: confidenceThreshold }));
+  if (ageGenderLoaded) pipeline = pipeline.withAgeAndGender();
+  if (expressionLoaded) pipeline = pipeline.withFaceExpressions();
+
+  const detections = await pipeline;
+  const now = performance.now();
+  const used = new Set();
+
+  for (const det of detections) {
+    const b = det.detection.box;
+    const box = { x: b.x, y: b.y, w: b.width, h: b.height };
+    const dispX = modelToDisplayX(box.x, box.w, video.videoWidth);
+    const cx = (dispX + box.w / 2) / video.videoWidth;
+    const cy = (box.y + box.h / 2) / video.videoHeight;
+    if (roiEnabled) {
+      if (!(cx >= roi.x && cx <= roi.x + roi.w && cy >= roi.y && cy <= roi.y + roi.h)) continue;
+    }
+    let best = null, bestIoU = 0;
+    for (const t of faceTracks) {
+      if (used.has(t.id)) continue;
+      const v = iou(box, t.box);
+      if (v > bestIoU && v > 0.2) { bestIoU = v; best = t; }
+    }
+    if (best) {
+      best.box = box; best.lastSeen = now; best.detection = det;
+      used.add(best.id);
+    } else {
+      faceTracks.push({ id: nextFaceId++, box, lastSeen: now, detection: det });
+      used.add(faceTracks[faceTracks.length - 1].id);
+    }
+  }
+  faceTracks = faceTracks.filter(t => (now - t.lastSeen) < FACE_TRACK_TIMEOUT);
+}
+
+function classifyShape(points, area, perimeter) {
+  const n = points.length;
+  if (n < 3 || n > 20) return null;
+
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  for (const p of points) {
+    if (p.x < minX) minX = p.x; if (p.x > maxX) maxX = p.x;
+    if (p.y < minY) minY = p.y; if (p.y > maxY) maxY = p.y;
+  }
+  const bw = Math.max(1, maxX - minX), bh = Math.max(1, maxY - minY);
+  const aspect = Math.max(bw, bh) / Math.min(bw, bh);
+  const circularity = perimeter > 0 ? (4 * Math.PI * area) / (perimeter * perimeter) : 0;
+
+  if (circularity > 0.85 && n >= 6) {
+    if (aspect < 1.35) return { name: 'Círculo', score: Math.round(70 + circularity * 28) };
+    return { name: 'Óvalo', score: Math.round(65 + circularity * 25) };
+  }
+  if (circularity > 0.72 && aspect > 1.4 && n >= 6) return { name: 'Óvalo', score: 75 };
+
+  const sides = [];
+  for (let i = 0; i < n; i++) {
+    const a = points[i], b = points[(i + 1) % n];
+    sides.push(Math.hypot(b.x - a.x, b.y - a.y));
+  }
+  const maxS = Math.max(...sides), minS = Math.min(...sides);
+  const sideRatio = minS > 0 ? maxS / minS : 99;
+
+  const angles = [];
+  for (let i = 0; i < n; i++) {
+    const p0 = points[(i - 1 + n) % n], p1 = points[i], p2 = points[(i + 1) % n];
+    const v1 = { x: p0.x - p1.x, y: p0.y - p1.y };
+    const v2 = { x: p2.x - p1.x, y: p2.y - p1.y };
+    const m = Math.hypot(v1.x, v1.y) * Math.hypot(v2.x, v2.y);
+    if (m === 0) { angles.push(180); continue; }
+    const c = (v1.x * v2.x + v1.y * v2.y) / m;
+    angles.push(Math.acos(Math.max(-1, Math.min(1, c))) * 180 / Math.PI);
+  }
+
+  if (n === 3) return { name: 'Triángulo', score: 82 };
+  if (n === 4) {
+    const allRight = angles.every(a => Math.abs(a - 90) < 20);
+    const oppEqual = Math.abs(sides[0] - sides[2]) / maxS < 0.2 && Math.abs(sides[1] - sides[3]) / maxS < 0.2;
+    if (allRight && sideRatio < 1.2) return { name: 'Cuadrado', score: 88 };
+    if (allRight && oppEqual) return { name: 'Rectángulo', score: 85 };
+    if (sideRatio < 1.2 && !allRight) return { name: 'Rombo', score: 80 };
+    return { name: 'Cuadrilátero', score: 60 };
+  }
+  if (n === 5) return { name: 'Pentágono', score: 82 };
+  if (n === 6) return { name: 'Hexágono', score: 82 };
+  if (n >= 8 && circularity < 0.6) return { name: 'Estrella', score: 65 };
+  return { name: 'Figura', score: 45 };
+}
+
+async function detectShapes() {
+  if (!openCvReady || !video.videoWidth || !window.cv) return;
+  inferenceCount++;
+
+  if (shapeCanvas.width !== video.videoWidth) shapeCanvas.width = video.videoWidth;
+  if (shapeCanvas.height !== video.videoHeight) shapeCanvas.height = video.videoHeight;
+  shapeCtx.drawImage(video, 0, 0, shapeCanvas.width, shapeCanvas.height);
+
+  let src = null, gray = null, blurred = null, edges = null, contours = null, hierarchy = null;
+  try {
+    src = cv.imread(shapeCanvas);
+    gray = new cv.Mat();
+    blurred = new cv.Mat();
+    edges = new cv.Mat();
+    contours = new cv.MatVector();
+    hierarchy = new cv.Mat();
+
+    cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
+    cv.GaussianBlur(gray, blurred, new cv.Size(5, 5), 0);
+    cv.Canny(blurred, edges, 30, 100);
+    cv.findContours(edges, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+
+    const now = performance.now();
+    const used = new Set();
+    const minArea = performanceMode ? 2000 : 800;
+    const maxArea = video.videoWidth * video.videoHeight * 0.85;
+
+    for (let i = 0; i < contours.size(); i++) {
+      const cnt = contours.get(i);
+      const area = cv.contourArea(cnt);
+      if (area < minArea || area > maxArea) { cnt.delete(); continue; }
+
+      const per = cv.arcLength(cnt, true);
+      const approx = new cv.Mat();
+      cv.approxPolyDP(cnt, approx, 0.02 * per, true);
+      const n = approx.rows;
+      if (n < 3 || n > 20) { approx.delete(); cnt.delete(); continue; }
+
+      const pts = [];
+      for (let j = 0; j < n; j++) pts.push({ x: approx.intAt(j, 0), y: approx.intAt(j, 1) });
+      const result = classifyShape(pts, area, per);
+
+      if (!result || result.score < confidenceThreshold * 100) {
+        approx.delete(); cnt.delete(); continue;
+      }
+
+      const rect = cv.boundingRect(approx);
+      const dispX = modelToDisplayX(rect.x, rect.width, video.videoWidth);
+      const cx = (dispX + rect.width / 2) / video.videoWidth;
+      const cy = (rect.y + rect.height / 2) / video.videoHeight;
+      if (roiEnabled && !(cx >= roi.x && cx <= roi.x + roi.w && cy >= roi.y && cy <= roi.y + roi.h)) {
+        approx.delete(); cnt.delete(); continue;
+      }
+
+      const box = { x: rect.x, y: rect.y, w: rect.width, h: rect.height };
+      let best = null, bestIoU = 0;
+      for (const t of shapeTracks) {
+        if (used.has(t.id)) continue;
+        const v = iou(box, t.box);
+        if (v > bestIoU && v > 0.2) { bestIoU = v; best = t; }
+      }
+      if (best) {
+        best.box = box; best.name = result.name; best.score = result.score;
+        best.lastSeen = now; used.add(best.id);
+      } else {
+        shapeTracks.push({ id: nextShapeId++, box, name: result.name, score: result.score, lastSeen: now });
+        used.add(shapeTracks[shapeTracks.length - 1].id);
+      }
+
+      approx.delete(); cnt.delete();
+    }
+
+    shapeTracks = shapeTracks.filter(t => (now - t.lastSeen) < SHAPE_TRACK_TIMEOUT);
+  } catch (e) {
+  } finally {
+    if (src) src.delete();
+    if (gray) gray.delete();
+    if (blurred) blurred.delete();
+    if (edges) edges.delete();
+    if (contours) contours.delete();
+    if (hierarchy) hierarchy.delete();
+  }
+}
+
+function extractShapeFeatures(contour, approx) {
+  try {
+    const area = cv.contourArea(contour);
+    if (area < 100) return null;
+    const per = cv.arcLength(contour, true);
+    const circ = per > 0 ? (4 * Math.PI * area) / (per * per) : 0;
+    const rect = cv.boundingRect(approx);
+    const aspect = Math.min(5, rect.width / Math.max(1, rect.height));
+    const m = cv.moments(contour);
+    const hu = new cv.Mat();
+    cv.HuMoments(m, hu);
+    const feats = [];
+    for (let i = 0; i < 7; i++) {
+      const v = hu.doubleAt(0, i);
+      feats.push(-Math.sign(v) * Math.log10(Math.abs(v) + 1e-10));
+    }
+    hu.delete();
+    feats.push(circ, aspect, approx.rows / 10);
+    return feats;
+  } catch (e) { return null; }
+}
+
+function drawOverlay() {
+  if (!isCameraActive || !overlay.width) return;
+  if (overlay.width !== video.videoWidth || overlay.height !== video.videoHeight) {
+    overlay.width = video.videoWidth;
+    overlay.height = video.videoHeight;
+  }
+  ctx.clearRect(0, 0, overlay.width, overlay.height);
+  if (roiEnabled) drawRoi();
+  if (!showBoxes) {
+    document.getElementById('detectionCount').textContent = '0 detecciones';
+    document.getElementById('perfDet').textContent = '0';
+    return;
+  }
+  let count = 0;
+  if (showFaces && faceDetectorLoaded) {
+    for (const t of faceTracks) {
+      if (performance.now() - t.lastSeen > FACE_TRACK_TIMEOUT) continue;
+      drawFaceBox(t); count++;
+    }
+  }
+  if (showShapes && openCvReady) {
+    for (const t of shapeTracks) {
+      if (performance.now() - t.lastSeen > SHAPE_TRACK_TIMEOUT) continue;
+      drawShapeBox(t); count++;
+    }
+  }
+  document.getElementById('detectionCount').textContent = count + ' detecciones';
+  document.getElementById('perfDet').textContent = count;
+}
+
+function drawFaceBox(track) {
+  const d = track.box;
+  const W = video.videoWidth;
+  const drawX = modelToDisplayX(d.x, d.w, W);
+  ctx.strokeStyle = '#ef4444';
+  ctx.lineWidth = Math.max(2, W / 420);
+  ctx.strokeRect(drawX, d.y, d.w, d.h);
+  const det = track.detection;
+  const lines = [{ text: 'Objeto: Humano (Acceso)', bold: true }];
+  if (ageGenderLoaded && det && typeof det.age === 'number') {
+    lines.push({ text: `Edad: ${ageToRange(det.age)} aprox.` });
+  } else lines.push({ text: 'Edad: No disponible' });
+  if (expressionLoaded && det && det.expressions) {
+    let bestE = null, bestP = 0;
+    for (const k in det.expressions) if (det.expressions[k] > bestP) { bestP = det.expressions[k]; bestE = k; }
+    if (bestP > 0.25) lines.push({ text: `Expresión: ${translateExpression(bestE)}` });
+  }
+  drawLabel(drawX, d.y + d.h + 4, lines, W);
+}
+
+function drawShapeBox(track) {
+  const d = track.box;
+  const W = video.videoWidth;
+  const drawX = modelToDisplayX(d.x, d.w, W);
+  ctx.strokeStyle = '#ef4444';
+  ctx.lineWidth = Math.max(2, W / 420);
+  ctx.strokeRect(drawX, d.y, d.w, d.h);
+  drawLabel(drawX, d.y + d.h + 4, [
+    { text: `Gesto/Figura: ${track.name}`, bold: true },
+    { text: `Confianza: ${Math.round(track.score)}%` }
+  ], W);
+}
+
+function drawLabel(x, y, lines, canvasW) {
+  const padding = 8, lineH = Math.max(14, canvasW / 90), fs = Math.max(11, canvasW / 95);
+  const fontFamily = getComputedStyle(document.body).fontFamily;
+  let maxW = 0;
+  for (const l of lines) {
+    ctx.font = `${l.bold ? '700' : '500'} ${fs}px ${fontFamily}`;
+    const w = ctx.measureText(l.text).width;
+    if (w > maxW) maxW = w;
+  }
+  const boxW = maxW + padding * 2, boxH = lines.length * lineH + padding * 2 - 3;
+  let lx = x, ly = y;
+  if (lx + boxW > overlay.width) lx = overlay.width - boxW - 4;
+  if (lx < 4) lx = 4;
+  if (ly + boxH > overlay.height) { ly = y - boxH - 12; if (ly < 4) ly = 4; }
+  ctx.fillStyle = 'rgba(15,23,42,.88)';
+  ctx.beginPath();
+  if (ctx.roundRect) ctx.roundRect(lx, ly, boxW, boxH, 6);
+  else ctx.rect(lx, ly, boxW, boxH);
+  ctx.fill();
+  ctx.textBaseline = 'top';
+  for (let i = 0; i < lines.length; i++) {
+    const l = lines[i];
+    ctx.font = `${l.bold ? '700' : '500'} ${fs}px ${fontFamily}`;
+    ctx.fillStyle = l.bold ? '#fff' : '#cbd5e1';
+    ctx.fillText(l.text, lx + padding, ly + padding + i * lineH);
+  }
+}
+
+function drawRoi() {
+  const W = overlay.width, H = overlay.height;
+  const x = roi.x * W, y = roi.y * H, w = roi.w * W, h = roi.h * H;
+  ctx.strokeStyle = 'rgba(167,139,250,.9)';
+  ctx.lineWidth = 2;
+  ctx.setLineDash([8, 5]);
+  ctx.strokeRect(x, y, w, h);
+  ctx.setLineDash([]);
+  const cs = 10;
+  ctx.fillStyle = 'rgba(167,139,250,.9)';
+  [[x, y], [x + w, y], [x, y + h], [x + w, y + h]].forEach(([cx, cy]) => {
+    ctx.fillRect(cx - cs / 2, cy - cs / 2, cs, cs);
+  });
+}
+
+overlay.addEventListener('pointerdown', e => {
+  if (!roiEnabled || !isCameraActive) return;
+  const p = screenToCanvas(e.clientX, e.clientY);
+  if (!p) return;
+  const W = overlay.width, H = overlay.height;
+  const rx = roi.x * W, ry = roi.y * H, rw = roi.w * W, rh = roi.h * H;
+  const cs = 16;
+  const corners = [[rx, ry], [rx + rw, ry], [rx, ry + rh], [rx + rw, ry + rh]];
+  for (const [cx, cy] of corners) {
+    if (Math.abs(p.x - cx) < cs && Math.abs(p.y - cy) < cs) {
+      roiInteraction = 'resize-br';
+      overlay.setPointerCapture(e.pointerId);
+      return;
+    }
+  }
+  if (pointInBox(p.x, p.y, { x: rx, y: ry, w: rw, h: rh })) {
+    roiInteraction = 'drag';
+    overlay.setPointerCapture(e.pointerId);
+  }
+});
+overlay.addEventListener('pointermove', e => {
+  if (!roiInteraction || !roiEnabled) return;
+  const p = screenToCanvas(e.clientX, e.clientY);
+  if (!p) return;
+  const nx = p.x / overlay.width, ny = p.y / overlay.height;
+  if (roiInteraction === 'drag') {
+    roi.x = Math.max(0, Math.min(1 - roi.w, nx - roi.w / 2));
+    roi.y = Math.max(0, Math.min(1 - roi.h, ny - roi.h / 2));
+  } else if (roiInteraction === 'resize-br') {
+    roi.w = Math.max(0.08, Math.min(1 - roi.x, nx - roi.x));
+    roi.h = Math.max(0.08, Math.min(1 - roi.y, ny - roi.y));
+  }
+});
+overlay.addEventListener('pointerup', () => { roiInteraction = null; });
+overlay.addEventListener('pointercancel', () => { roiInteraction = null; });
+
+function updateCaptureButton() {
+  document.getElementById('captureBtn').disabled = !(openCvReady && isCameraActive);
+  document.getElementById('trainBtn').disabled = trainingExamples.length < 3 || learnedCategories.size < 2;
+  document.getElementById('exportBtn').disabled = trainingExamples.length === 0;
+}
+function updateLearningUI() {
+  document.getElementById('exampleCounter').textContent =
+    `${trainingExamples.length} ejemplo${trainingExamples.length === 1 ? '' : 's'} guardado${trainingExamples.length === 1 ? '' : 's'}`;
+  const list = document.getElementById('learnedList');
+  list.innerHTML = '';
+  const counts = {};
+  trainingExamples.forEach(e => counts[e.label] = (counts[e.label] || 0) + 1);
+  learnedCategories.forEach(cat => {
+    const tag = document.createElement('span');
+    tag.className = 'learned-tag';
+    tag.innerHTML = `${cat} (${counts[cat] || 0}) <button data-cat="${cat}">×</button>`;
+    list.appendChild(tag);
+  });
+  updateCaptureButton();
+}
+function persistTraining() {
+  try {
+    localStorage.setItem(LS_TRAINING, JSON.stringify({
+      examples: trainingExamples.map(e => ({ features: e.features, label: e.label }))
+    }));
+  } catch (e) {}
+}
+(function restoreTraining() {
+  try {
+    const raw = localStorage.getItem(LS_TRAINING);
+    if (!raw) return;
+    const obj = JSON.parse(raw);
+    if (!obj || !Array.isArray(obj.examples)) return;
+    trainingExamples = obj.examples
+      .filter(e => Array.isArray(e.features) && e.features.length > 0 && typeof e.label === 'string')
+      .map(e => ({ features: e.features.map(Number), label: e.label }));
+    learnedCategories = new Set(trainingExamples.map(e => e.label));
+  } catch (e) { trainingExamples = []; }
+})();
+updateLearningUI();
+
+document.getElementById('captureBtn').addEventListener('click', async () => {
+  const name = document.getElementById('shapeNameInput').value.trim();
+  if (!name) { showFeedback('Ingrese un nombre para la figura.', 'error'); return; }
+  if (!openCvReady || !isCameraActive) { showFeedback('Cámara y OpenCV deben estar activos.', 'error'); return; }
+  try {
+    shapeCanvas.width = video.videoWidth; shapeCanvas.height = video.videoHeight;
+    shapeCtx.drawImage(video, 0, 0);
+    const src = cv.imread(shapeCanvas);
+    const gray = new cv.Mat(), blurred = new cv.Mat(), edges = new cv.Mat();
+    const contours = new cv.MatVector(), hierarchy = new cv.Mat();
+    try {
+      cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
+      cv.GaussianBlur(gray, blurred, new cv.Size(5, 5), 0);
+      cv.Canny(blurred, edges, 30, 100);
+      cv.findContours(edges, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+      let bestCnt = null, bestArea = 0;
+      for (let i = 0; i < contours.size(); i++) {
+        const c = contours.get(i);
+        const a = cv.contourArea(c);
+        if (a > bestArea) { bestArea = a; if (bestCnt) bestCnt.delete(); bestCnt = c.clone(); }
+        c.delete();
+      }
+      if (!bestCnt || bestArea < 800) {
+        showFeedback('No se detectó una figura suficientemente grande.', 'error');
+        if (bestCnt) bestCnt.delete();
+        return;
+      }
+      const per = cv.arcLength(bestCnt, true);
+      const approx = new cv.Mat();
+      cv.approxPolyDP(bestCnt, approx, 0.02 * per, true);
+      const feats = extractShapeFeatures(bestCnt, approx);
+      approx.delete(); bestCnt.delete();
+      if (!feats) { showFeedback('No se pudieron extraer características.', 'error'); return; }
+      trainingExamples.push({ features: feats, label: name });
+      learnedCategories.add(name);
+      persistTraining();
+      updateLearningUI();
+      document.getElementById('shapeNameInput').value = '';
+      showFeedback(`Ejemplo anonimizado de "${name}" capturado.`, 'success');
+    } finally {
+      src.delete(); gray.delete(); blurred.delete(); edges.delete();
+      contours.delete(); hierarchy.delete();
+    }
+  } catch (e) {
+    showFeedback('Error al capturar el ejemplo.', 'error');
+  }
+});
+
+document.getElementById('trainBtn').addEventListener('click', async () => {
+  if (trainingExamples.length < 3) { showFeedback('Se necesitan al menos 3 ejemplos.', 'error'); return; }
+  if (learnedCategories.size < 2) { showFeedback('Se necesitan al menos 2 categorías.', 'error'); return; }
+  showFeedback('Entrenando modelo localmente…', 'info');
+  try {
+    customLabels = Array.from(learnedCategories).sort();
+    const idx = {}; customLabels.forEach((l, i) => idx[l] = i);
+    customInputSize = trainingExamples[0].features.length;
+    const xs = tf.tensor2d(trainingExamples.map(e => e.features));
+    const ys = tf.tensor2d(trainingExamples.map(e => {
+      const a = new Array(customLabels.length).fill(0);
+      a[idx[e.label]] = 1;
+      return a;
+    }));
+    if (customModel) { customModel.dispose(); customModel = null; }
+    customModel = tf.sequential();
+    customModel.add(tf.layers.dense({ inputShape: [customInputSize], units: 24, activation: 'relu', kernelInitializer: 'heNormal' }));
+    customModel.add(tf.layers.dense({ units: customLabels.length, activation: 'softmax', kernelInitializer: 'glorotNormal' }));
+    customModel.compile({ optimizer: tf.train.adam(0.001), loss: 'categoricalCrossentropy', metrics: ['accuracy'] });
+    await customModel.fit(xs, ys, { epochs: 80, batchSize: Math.min(8, trainingExamples.length), shuffle: true, verbose: 0 });
+    xs.dispose(); ys.dispose();
+    showFeedback('¡Entrenamiento completado localmente!', 'success');
+  } catch (e) {
+    showFeedback('Error durante el entrenamiento.', 'error');
+  }
+});
+
+document.getElementById('learnedList').addEventListener('click', e => {
+  if (e.target.tagName === 'BUTTON' && e.target.dataset.cat) {
+    const cat = e.target.dataset.cat;
+    trainingExamples = trainingExamples.filter(x => x.label !== cat);
+    learnedCategories.delete(cat);
+    persistTraining(); updateLearningUI();
+    showFeedback(`Categoría "${cat}" eliminada.`, 'info');
+  }
+});
+
+document.getElementById('clearLearningBtn').addEventListener('click', () => {
+  if (trainingExamples.length === 0) { showFeedback('No hay datos.', 'info'); return; }
+  if (!confirm('¿Eliminar todos los ejemplos guardados?')) return;
+  trainingExamples = [];
+  learnedCategories.clear();
+  if (customModel) { customModel.dispose(); customModel = null; }
+  customLabels = [];
+  persistTraining(); updateLearningUI();
+  showFeedback('Datos de aprendizaje limpiados.', 'info');
+});
+
+document.getElementById('exportBtn').addEventListener('click', () => {
+  if (trainingExamples.length === 0) return;
+  const data = { version: 1, examples: trainingExamples.map(e => ({ features: e.features, label: e.label })) };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `plantillas_acceso_${new Date().toISOString().slice(0, 10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showFeedback('Plantillas exportadas de forma segura.', 'success');
+});
+
+document.getElementById('importInput').addEventListener('change', async e => {
+  const file = e.target.files && e.target.files[0];
+  if (!file) return;
+  try {
+    const text = await file.text();
+    const obj = JSON.parse(text);
+    if (!obj || !Array.isArray(obj.examples)) throw new Error('Formato inválido');
+    const imported = obj.examples
+      .filter(x => Array.isArray(x.features) && x.features.length > 0 && typeof x.label === 'string')
+      .map(x => ({ features: x.features.map(Number), label: x.label }));
+    if (imported.length === 0) throw new Error('Sin ejemplos válidos');
+    trainingExamples = trainingExamples.concat(imported);
+    learnedCategories = new Set(trainingExamples.map(e => e.label));
+    persistTraining(); updateLearningUI();
+    showFeedback(`Importados ${imported.length} registros biométricos (plantillas).`, 'success');
+  } catch (err) {
+    showFeedback('Archivo inválido o corrupto (Validación OWASP ASVS).', 'error');
+  } finally { e.target.value = ''; }
+});
+
+document.getElementById('startBtn').addEventListener('click', startCamera);
+document.getElementById('stopBtn').addEventListener('click', stopCamera);
+document.getElementById('faceToggle').addEventListener('change', e => { showFaces = e.target.checked; });
+document.getElementById('shapeToggle').addEventListener('change', e => { showShapes = e.target.checked; });
+document.getElementById('boxToggle').addEventListener('change', e => { showBoxes = e.target.checked; });
+document.getElementById('perfToggle').addEventListener('change', e => { performanceMode = e.target.checked; });
+document.getElementById('thresholdSlider').addEventListener('input', e => {
+  confidenceThreshold = parseInt(e.target.value, 10) / 100;
+  document.getElementById('thresholdValue').textContent = e.target.value + '%';
+});
+document.getElementById('roiToggle').addEventListener('change', e => {
+  roiEnabled = e.target.checked;
+  overlay.classList.toggle('roi-active', roiEnabled);
+  document.getElementById('resetRoiBtn').disabled = !roiEnabled;
+});
+document.getElementById('resetRoiBtn').addEventListener('click', () => {
+  roi = { x: 0.15, y: 0.15, w: 0.7, h: 0.7 };
+});
+document.getElementById('shapeNameInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('captureBtn').click();
+});
+
+// Inicialización final: verificar consentimiento y cargar modelos
+window.addEventListener('DOMContentLoaded', () => {
+  checkLegalConsent();
+  loadModels();
+});
+
+window.addEventListener('beforeunload', () => {
+  stopCamera();
+  if (customModel) customModel.dispose();
+});
+</script>
+</body>
+</html>
